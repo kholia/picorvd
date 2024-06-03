@@ -1,4 +1,4 @@
-# PicoRVD 
+# PicoRVD
 
 This repo contains a GDB-compatible remote debug interface for the RISC-V based CH32V003 series of chips by WinChipHead.
 
@@ -22,7 +22,71 @@ The app runs on a Raspberry Pi Pico and can communicate with the CH32V003 via WC
 
 Connect pin PD1 on your CH32V device to the Pico's SWIO pin (defaults to pin GP28), connect CH32V ground to Pico ground, and add a 1Kohm pull-up resistor from SWIO to +3.3v.
 
-After that run "gdb-multiarch {your_binary.elf}" and type "target extended-remote /dev/ttyACM0" to connect to the debugger (replace ttyACM0 with whatever port your Pico shows up as).
+After that run "gdb-multiarch {your_binary.elf}" and type `target remote /dev/ttyACM0` to connect to the debugger (replace ttyACM0 with whatever port your Pico shows up as).
+
+Note:
+
+The `target extended-remote /dev/ttyACM0` GDB command is buggy - at least for Zephyr based firmwares. It gets stuck as follows:
+
+```
+(gdb) target extended-remote /dev/ttyACM0
+Remote debugging using /dev/ttyACM0
+arch_irq_unlock (key=8) at zephyr/include/zephyr/arch/riscv/arch.h:259
+259		__asm__ volatile ("csrs mstatus, %0"
+(gdb) c
+Continuing.
+
+Program received signal SIGTRAP, Trace/breakpoint trap.
+arch_cpu_idle () at zephyr/arch/riscv/core/cpu_idle.c:14
+14		irq_unlock(MSTATUS_IEN);
+(gdb) c
+Continuing.
+
+Program received signal SIGTRAP, Trace/breakpoint trap.
+arch_cpu_idle () at zephyr/arch/riscv/core/cpu_idle.c:14
+14		irq_unlock(MSTATUS_IEN);
+(gdb)
+Continuing.
+
+<Never ends>
+```
+
+With `target remote /dev/ttyACM0`, debugging works great!
+
+```
+(gdb) target remote /dev/ttyACM0
+(gdb) break k_msleep
+Breakpoint 1 at 0xdc6: file zephyr/include/generated/zephyr/syscalls/kernel.h, line 135.
+Note: automatically using hardware breakpoints for read-only addresses.
+(gdb) c
+Continuing.
+
+Breakpoint 1, k_msleep (ms=1000) at zephyr/include/zephyr/kernel.h:491
+491		return k_sleep(Z_TIMEOUT_MS(ms));
+(gdb) c
+Continuing.
+
+Breakpoint 1, k_msleep (ms=1000) at zephyr/include/zephyr/kernel.h:491
+491		return k_sleep(Z_TIMEOUT_MS(ms));
+(gdb) c
+Continuing.
+```
+
+Debug helper command:
+
+```
+./debug.sh ~/zephyr.elf
+```
+
+Flash helper command:
+
+```
+./flash.sh ~/zephyr.elf
+
+./flash.sh ./example/bin/blink.elf
+```
+
+Important note: Toggling the power to activate the newly loaded firmware is NOT required anymore.
 
 Most operations should be faster than the WCH-Link by virtue of doing some basic Pico-side caching and avoiding redundant debug register read/writes.
 
@@ -51,7 +115,7 @@ Spec here - https://github.com/openwch/ch32v003/blob/main/RISC-V%20QingKeV2%20Mi
 ### RVDebug
 Exposes the various registers in the official RISC-V debug spec along with methods to read/write memory over the main bus and halt/resume/reset the CPU.
 
-Spec here - https://github.com/riscv/riscv-debug-spec/blob/master/riscv-debug-stable.pdf 
+Spec here - https://github.com/riscv/riscv-debug-spec/blob/master/riscv-debug-stable.pdf
 
 ### WCHFlash
 Methods to read/write the CH32V003's flash. Most stuff hardcoded at the moment. WCHFlash does _not_ clobber device RAM, instead it streams data directly to the flash page buffer. This means that in theory you should be able to use it to replace flash contents without needing to reset the CPU, though I haven't tested that yet.

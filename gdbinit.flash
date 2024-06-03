@@ -1,0 +1,5 @@
+define hook-quit
+    set confirm off
+end
+
+target extended-remote /dev/ttyACM0
