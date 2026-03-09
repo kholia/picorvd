@@ -1,1 +1,1 @@
-gdb-multiarch -x gdbinit bin/blink.elf
+gdb-multiarch -x gdbinit blink.elf

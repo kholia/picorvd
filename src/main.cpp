@@ -28,6 +28,10 @@ int main() {
   // Enable non-USB serial port on gpio 0/1 for meta-debug output :D
   stdio_uart_init_full(uart0, 1000000, PIN_UART_TX, PIN_UART_RX);
 
+  // Initialize USB early to avoid enumeration race condition
+  tud_init(BOARD_TUD_RHPORT);
+  sleep_ms(100); // Allow time for USB enumeration
+
   printf_g("\n\n\n");
   printf_g("//==============================================================================\n");
   printf_g("// PicoRVD 0.0.2\n\n");
@@ -69,11 +73,6 @@ int main() {
     //----------------------------------------
     // Update TinyUSB
 
-    static bool tud_init_done = false;
-    if (!tud_init_done) {
-      tud_init(BOARD_TUD_RHPORT);
-      tud_init_done = true;
-    }
     tud_task();
 
     //----------------------------------------
